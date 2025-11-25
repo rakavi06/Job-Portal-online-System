@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Applications - Job Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="job-listings.html">Browse Jobs</a></li>
+                <li><a href="job-seeker-dashboard.html">Dashboard</a></li>
+                <li><a href="profile.html">Profile</a></li>
+                <li><a href="messages.html">Messages</a></li>
+                <li><a href="#" id="logout-link" class="btn btn-outline">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">My Applications</h2>
+                    <div class="flex gap-2">
+                        <select id="status-filter" class="form-select" style="width: auto;" onchange="filterApplications()">
+                            <option value="">All Status</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Viewed">Viewed</option>
+                            <option value="Interview">Interview</option>
+                            <option value="Accepted">Accepted</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="applications-list">
+                    <!-- Applications will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/jobs.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        let allApplications = [];
+
+        function loadApplications() {
+            if (!Auth.requireUserType('job_seeker')) return;
+
+            allApplications = Applications.getMyApplications();
+            filterApplications();
+        }
+
+        function filterApplications() {
+            const statusFilter = document.getElementById('status-filter').value;
+            const filtered = statusFilter ? 
+                allApplications.filter(app => app.status === statusFilter) : 
+                allApplications;
+
+            const container = document.getElementById('applications-list');
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No applications found</p></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(app => {
+                const statusBadge = {
+                    'Pending': 'badge-warning',
+                    'Viewed': 'badge-info',
+                    'Interview': 'badge-info',
+                    'Accepted': 'badge-success',
+                    'Rejected': 'badge-danger'
+                }[app.status] || 'badge-info';
+
+                return `
+                    <div class="card" style="margin-bottom: 1rem;">
+                        <div class="card-header">
+                            <div>
+                                <h3><a href="job-detail.html?id=${app.jobId}" style="color: var(--primary-color); text-decoration: none;">${app.job ? app.job.title : 'Job'}</a></h3>
+                                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;">
+                                    Applied on ${Utils.formatDate(app.createdAt)}
+                                </p>
+                            </div>
+                            <span class="badge ${statusBadge}">${app.status}</span>
+                        </div>
+                        <div class="mb-2">
+                            <p><strong>Location:</strong> ${app.job ? app.job.location : 'N/A'}</p>
+                            <p><strong>Job Type:</strong> ${app.job ? app.job.jobType : 'N/A'}</p>
+                            <p><strong>Salary:</strong> ${app.job ? app.job.salary : 'N/A'}</p>
+                        </div>
+                        ${app.coverLetter ? `
+                            <div class="mb-2">
+                                <strong>Cover Letter:</strong>
+                                <p style="white-space: pre-wrap; color: var(--text-secondary);">${app.coverLetter}</p>
+                            </div>
+                        ` : ''}
+                        ${app.job ? `
+                            <div class="flex gap-2">
+                                <a href="job-detail.html?id=${app.jobId}" class="btn btn-sm btn-outline">View Job</a>
+                                <a href="messages.html?jobId=${app.jobId}" class="btn btn-sm btn-primary">Message Employer</a>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadApplications();
+            
+            document.getElementById('logout-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                Auth.logout();
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html>
+

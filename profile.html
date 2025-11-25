@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - Job Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="job-listings.html">Browse Jobs</a></li>
+                <li><a href="#" id="dashboard-link">Dashboard</a></li>
+                <li><a href="profile.html">Profile</a></li>
+                <li><a href="#" id="logout-link" class="btn btn-outline">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">My Profile</h2>
+                </div>
+                <div id="profile-content">
+                    <!-- Profile content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        function loadProfile() {
+            if (!Auth.requireAuth()) return;
+
+            const currentUser = Auth.getCurrentUser();
+            const profileContent = document.getElementById('profile-content');
+
+            if (currentUser.type === 'job_seeker') {
+                profileContent.innerHTML = `
+                    <form id="profile-form">
+                        <div class="form-group">
+                            <label class="form-label" for="name">Full Name</label>
+                            <input type="text" id="name" class="form-input" value="${currentUser.name || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="email">Email</label>
+                            <input type="email" id="email" class="form-input" value="${currentUser.email || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="phone">Phone</label>
+                            <input type="tel" id="phone" class="form-input" value="${currentUser.phone || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="location">Location</label>
+                            <input type="text" id="location" class="form-input" value="${currentUser.location || ''}" placeholder="City, State">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="resume">Resume/CV</label>
+                            <input type="file" id="resume" class="form-input" accept=".pdf,.doc,.docx">
+                            ${currentUser.resume ? `<p style="color: var(--text-secondary); font-size: 0.875rem;">Current: ${currentUser.resume}</p>` : ''}
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Skills (comma-separated)</label>
+                            <input type="text" id="skills" class="form-input" value="${(currentUser.skills || []).join(', ')}" placeholder="JavaScript, React, Node.js">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Work Experience</label>
+                            <div id="experience-list">
+                                ${(currentUser.experience || []).map((exp, idx) => `
+                                    <div style="border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; border-radius: var(--radius);">
+                                        <div class="grid grid-2">
+                                            <div class="form-group">
+                                                <label class="form-label">Company</label>
+                                                <input type="text" class="form-input exp-company" value="${exp.company || ''}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">Position</label>
+                                                <input type="text" class="form-input exp-position" value="${exp.position || ''}">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Duration</label>
+                                            <input type="text" class="form-input exp-duration" value="${exp.duration || ''}" placeholder="2020-2023">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Description</label>
+                                            <textarea class="form-textarea exp-description">${exp.description || ''}</textarea>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeExperience(${idx})">Remove</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <button type="button" class="btn btn-outline" onclick="addExperience()">Add Experience</button>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Education</label>
+                            <div id="education-list">
+                                ${(currentUser.education || []).map((edu, idx) => `
+                                    <div style="border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; border-radius: var(--radius);">
+                                        <div class="grid grid-2">
+                                            <div class="form-group">
+                                                <label class="form-label">Degree</label>
+                                                <input type="text" class="form-input edu-degree" value="${edu.degree || ''}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">School</label>
+                                                <input type="text" class="form-input edu-school" value="${edu.school || ''}">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Year</label>
+                                            <input type="text" class="form-input edu-year" value="${edu.year || ''}" placeholder="2018">
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeEducation(${idx})">Remove</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <button type="button" class="btn btn-outline" onclick="addEducation()">Add Education</button>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">Save Profile</button>
+                        </div>
+                    </form>
+                `;
+            } else if (currentUser.type === 'employer') {
+                profileContent.innerHTML = `
+                    <form id="profile-form">
+                        <div class="form-group">
+                            <label class="form-label" for="company-name">Company Name</label>
+                            <input type="text" id="company-name" class="form-input" value="${currentUser.companyName || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="email">Email</label>
+                            <input type="email" id="email" class="form-input" value="${currentUser.email || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="phone">Phone</label>
+                            <input type="tel" id="phone" class="form-input" value="${currentUser.phone || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="location">Location</label>
+                            <input type="text" id="location" class="form-input" value="${currentUser.location || ''}" placeholder="City, State">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="website">Website</label>
+                            <input type="url" id="website" class="form-input" value="${currentUser.website || ''}" placeholder="https://example.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="industry">Industry</label>
+                            <input type="text" id="industry" class="form-input" value="${currentUser.industry || ''}" placeholder="Technology, Finance, etc.">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="logo">Company Logo</label>
+                            <input type="file" id="logo" class="form-input" accept="image/*">
+                            ${currentUser.logo ? `<p style="color: var(--text-secondary); font-size: 0.875rem;">Current logo uploaded</p>` : ''}
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="company-description">Company Description</label>
+                            <textarea id="company-description" class="form-textarea" placeholder="Tell us about your company...">${currentUser.companyDescription || ''}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">Save Profile</button>
+                        </div>
+                    </form>
+                `;
+            }
+        }
+
+        function addExperience() {
+            const list = document.getElementById('experience-list');
+            const div = document.createElement('div');
+            div.style.cssText = 'border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; border-radius: var(--radius);';
+            div.innerHTML = `
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Company</label>
+                        <input type="text" class="form-input exp-company">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Position</label>
+                        <input type="text" class="form-input exp-position">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Duration</label>
+                    <input type="text" class="form-input exp-duration" placeholder="2020-2023">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea exp-description"></textarea>
+                </div>
+                <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">Remove</button>
+            `;
+            list.appendChild(div);
+        }
+
+        function removeExperience(idx) {
+            const items = document.querySelectorAll('#experience-list > div');
+            if (items[idx]) items[idx].remove();
+        }
+
+        function addEducation() {
+            const list = document.getElementById('education-list');
+            const div = document.createElement('div');
+            div.style.cssText = 'border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; border-radius: var(--radius);';
+            div.innerHTML = `
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Degree</label>
+                        <input type="text" class="form-input edu-degree">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">School</label>
+                        <input type="text" class="form-input edu-school">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Year</label>
+                    <input type="text" class="form-input edu-year" placeholder="2018">
+                </div>
+                <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">Remove</button>
+            `;
+            list.appendChild(div);
+        }
+
+        function removeEducation(idx) {
+            const items = document.querySelectorAll('#education-list > div');
+            if (items[idx]) items[idx].remove();
+        }
+
+        document.getElementById('profile-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const currentUser = Auth.getCurrentUser();
+            const users = Storage.getCollection('users');
+            const userIndex = users.findIndex(u => u.id === currentUser.id);
+
+            if (userIndex === -1) return;
+
+            let updates = {};
+
+            if (currentUser.type === 'job_seeker') {
+                const skills = document.getElementById('skills').value.split(',').map(s => s.trim()).filter(s => s);
+                const experience = Array.from(document.querySelectorAll('#experience-list > div')).map(div => ({
+                    company: div.querySelector('.exp-company').value,
+                    position: div.querySelector('.exp-position').value,
+                    duration: div.querySelector('.exp-duration').value,
+                    description: div.querySelector('.exp-description').value
+                })).filter(exp => exp.company);
+                const education = Array.from(document.querySelectorAll('#education-list > div')).map(div => ({
+                    degree: div.querySelector('.edu-degree').value,
+                    school: div.querySelector('.edu-school').value,
+                    year: div.querySelector('.edu-year').value
+                })).filter(edu => edu.degree);
+
+                updates = {
+                    name: document.getElementById('name').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    location: document.getElementById('location').value,
+                    skills: skills,
+                    experience: experience,
+                    education: education
+                };
+
+                const resumeFile = document.getElementById('resume').files[0];
+                if (resumeFile) {
+                    updates.resume = resumeFile.name;
+                }
+            } else if (currentUser.type === 'employer') {
+                updates = {
+                    companyName: document.getElementById('company-name').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    location: document.getElementById('location').value,
+                    website: document.getElementById('website').value,
+                    industry: document.getElementById('industry').value,
+                    companyDescription: document.getElementById('company-description').value
+                };
+
+                const logoFile = document.getElementById('logo').files[0];
+                if (logoFile) {
+                    updates.logo = logoFile.name;
+                }
+            }
+
+            Storage.updateItem('users', currentUser.id, updates);
+            const updatedUser = Storage.getItemById('users', currentUser.id);
+            Storage.setCurrentUser(updatedUser);
+
+            Utils.showToast('Profile updated successfully!', 'success');
+            setTimeout(() => {
+                loadProfile();
+            }, 500);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProfile();
+            
+            const currentUser = Auth.getCurrentUser();
+            const dashboardLink = document.getElementById('dashboard-link');
+            if (currentUser.type === 'job_seeker') {
+                dashboardLink.href = 'job-seeker-dashboard.html';
+            } else if (currentUser.type === 'employer') {
+                dashboardLink.href = 'employer-dashboard.html';
+            } else if (currentUser.type === 'admin') {
+                dashboardLink.href = 'admin-dashboard.html';
+            }
+
+            document.getElementById('logout-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                Auth.logout();
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html>
+

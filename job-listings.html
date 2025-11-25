@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Jobs - Job Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="job-listings.html">Browse Jobs</a></li>
+                <li class="nav-auth nav-login">
+                    <a href="login.html" class="btn btn-outline">Login</a>
+                </li>
+                <li class="nav-auth nav-user" style="display: none;">
+                    <a href="#" id="dashboard-link" class="btn btn-primary">Dashboard</a>
+                    <a href="#" id="logout-link" class="btn btn-outline">Logout</a>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="search-section">
+                <div class="search-bar">
+                    <input type="text" id="search-input" class="search-input" placeholder="Search jobs by title, skills, or keywords...">
+                    <button class="btn btn-primary" onclick="performSearch()">Search</button>
+                </div>
+                <div class="filters">
+                    <div class="filter-group">
+                        <label class="form-label">Location</label>
+                        <input type="text" id="filter-location" class="form-input" placeholder="City, State">
+                    </div>
+                    <div class="filter-group">
+                        <label class="form-label">Job Type</label>
+                        <select id="filter-job-type" class="form-select">
+                            <option value="">All Types</option>
+                            <option value="Full-time">Full-time</option>
+                            <option value="Part-time">Part-time</option>
+                            <option value="Contract">Contract</option>
+                            <option value="Freelance">Freelance</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="form-label">Experience Level</label>
+                        <select id="filter-experience" class="form-select">
+                            <option value="">All Levels</option>
+                            <option value="Entry-level">Entry-level</option>
+                            <option value="Mid-level (2-4 years)">Mid-level (2-4 years)</option>
+                            <option value="Mid-level (3-5 years)">Mid-level (3-5 years)</option>
+                            <option value="Senior (5+ years)">Senior (5+ years)</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="form-label">Industry</label>
+                        <select id="filter-industry" class="form-select">
+                            <option value="">All Industries</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Design">Design</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Healthcare">Healthcare</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="filter-remote" style="margin-right: 0.5rem;">
+                            Remote Only
+                        </label>
+                    </div>
+                    <div class="filter-group">
+                        <button class="btn btn-secondary" onclick="clearFilters()" style="width: 100%;">Clear Filters</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="jobs-container" class="grid grid-2">
+                <!-- Jobs will be loaded here -->
+            </div>
+
+            <div id="no-results" class="empty-state" style="display: none;">
+                <div class="empty-state-icon">🔍</div>
+                <h3>No jobs found</h3>
+                <p>Try adjusting your search criteria or filters</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/jobs.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        let allJobs = [];
+
+        function loadJobs() {
+            allJobs = Jobs.getAllJobs();
+            displayJobs(allJobs);
+        }
+
+        function displayJobs(jobs) {
+            const container = document.getElementById('jobs-container');
+            const noResults = document.getElementById('no-results');
+
+            if (jobs.length === 0) {
+                container.style.display = 'none';
+                noResults.style.display = 'block';
+                return;
+            }
+
+            container.style.display = 'grid';
+            noResults.style.display = 'none';
+
+            container.innerHTML = jobs.map(job => {
+                const employer = Jobs.getEmployerInfo(job.employerId);
+                const isBookmarked = Bookmarks.isBookmarked(job.id);
+                const currentUser = Auth.getCurrentUser();
+
+                return `
+                    <div class="job-card" onclick="window.location.href='job-detail.html?id=${job.id}'">
+                        <div class="job-card-header">
+                            <div>
+                                <h3 class="job-title">${job.title}</h3>
+                                <p class="job-company">${employer ? employer.companyName || employer.name : 'Company'}</p>
+                            </div>
+                            ${currentUser ? `
+                                <button class="btn btn-sm ${isBookmarked ? 'btn-primary' : 'btn-outline'}" 
+                                        onclick="event.stopPropagation(); toggleBookmark('${job.id}')">
+                                    ${isBookmarked ? '★' : '☆'}
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="job-meta">
+                            <span class="job-meta-item">📍 ${job.location}</span>
+                            <span class="job-meta-item">💰 ${job.salary}</span>
+                            <span class="job-meta-item">📅 ${job.jobType}</span>
+                            <span class="job-meta-item">${job.remote ? '🏠 Remote' : '🏢 On-site'}</span>
+                        </div>
+                        <p class="job-description">${job.description.substring(0, 200)}...</p>
+                        <div class="job-skills">
+                            ${job.skills ? job.skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('') : ''}
+                        </div>
+                        <div class="job-footer">
+                            <span style="color: var(--text-secondary); font-size: 0.875rem;">
+                                👁️ ${job.views || 0} views • 📝 ${job.applications || 0} applications
+                            </span>
+                            <span class="badge badge-info">${job.experienceLevel}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function performSearch() {
+            const query = document.getElementById('search-input').value;
+            const filters = {
+                location: document.getElementById('filter-location').value,
+                jobType: document.getElementById('filter-job-type').value,
+                experienceLevel: document.getElementById('filter-experience').value,
+                industry: document.getElementById('filter-industry').value,
+                remote: document.getElementById('filter-remote').checked ? true : undefined
+            };
+
+            const results = Search.searchJobs(query, filters);
+            displayJobs(results);
+        }
+
+        function clearFilters() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('filter-location').value = '';
+            document.getElementById('filter-job-type').value = '';
+            document.getElementById('filter-experience').value = '';
+            document.getElementById('filter-industry').value = '';
+            document.getElementById('filter-remote').checked = false;
+            loadJobs();
+        }
+
+        function toggleBookmark(jobId) {
+            if (!Auth.isAuthenticated()) {
+                Utils.showToast('Please login to bookmark jobs', 'error');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            if (Bookmarks.isBookmarked(jobId)) {
+                Bookmarks.removeBookmark(jobId);
+                Utils.showToast('Job removed from bookmarks', 'info');
+            } else {
+                Bookmarks.bookmarkJob(jobId);
+                Utils.showToast('Job bookmarked', 'success');
+            }
+            loadJobs();
+        }
+
+        // Real-time search
+        document.getElementById('search-input').addEventListener('input', Utils.debounce(performSearch, 300));
+        document.getElementById('filter-location').addEventListener('input', Utils.debounce(performSearch, 300));
+        document.getElementById('filter-job-type').addEventListener('change', performSearch);
+        document.getElementById('filter-experience').addEventListener('change', performSearch);
+        document.getElementById('filter-industry').addEventListener('change', performSearch);
+        document.getElementById('filter-remote').addEventListener('change', performSearch);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadJobs();
+            updateNavigation();
+            
+            const currentUser = Auth.getCurrentUser();
+            if (currentUser) {
+                const dashboardLink = document.getElementById('dashboard-link');
+                if (currentUser.type === 'job_seeker') {
+                    dashboardLink.href = 'job-seeker-dashboard.html';
+                } else if (currentUser.type === 'employer') {
+                    dashboardLink.href = 'employer-dashboard.html';
+                } else if (currentUser.type === 'admin') {
+                    dashboardLink.href = 'admin-dashboard.html';
+                }
+
+                document.getElementById('logout-link').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    Auth.logout();
+                    window.location.href = 'index.html';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

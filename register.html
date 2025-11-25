@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Job Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="job-listings.html">Browse Jobs</a></li>
+                <li><a href="login.html" class="btn btn-outline">Login</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container-sm">
+            <div class="card" style="max-width: 600px; margin: 3rem auto;">
+                <div class="card-header">
+                    <h2 class="card-title">Create Account</h2>
+                </div>
+                <form id="register-form">
+                    <div class="form-group">
+                        <label class="form-label" for="user-type">I am a</label>
+                        <select id="user-type" class="form-select" required>
+                            <option value="">Select type</option>
+                            <option value="job_seeker">Job Seeker</option>
+                            <option value="employer">Employer</option>
+                        </select>
+                    </div>
+
+                    <div id="job-seeker-fields">
+                        <div class="form-group">
+                            <label class="form-label" for="name">Full Name</label>
+                            <input type="text" id="name" class="form-input">
+                        </div>
+                    </div>
+
+                    <div id="employer-fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label" for="company-name">Company Name</label>
+                            <input type="text" id="company-name" class="form-input">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email</label>
+                        <input type="email" id="email" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="password">Password</label>
+                        <input type="password" id="password" class="form-input" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="phone">Phone (Optional)</label>
+                        <input type="tel" id="phone" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="location">Location</label>
+                        <input type="text" id="location" class="form-input" placeholder="City, State">
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+                    </div>
+                    <div class="text-center">
+                        <p style="color: var(--text-secondary);">
+                            Already have an account? <a href="login.html" style="color: var(--primary-color);">Login</a>
+                        </p>
+                    </div>
+                    <div id="error-message" class="form-error" style="display: none;"></div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        const userTypeSelect = document.getElementById('user-type');
+        const jobSeekerFields = document.getElementById('job-seeker-fields');
+        const employerFields = document.getElementById('employer-fields');
+
+        userTypeSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'job_seeker') {
+                jobSeekerFields.style.display = 'block';
+                employerFields.style.display = 'none';
+                document.getElementById('name').required = true;
+                document.getElementById('company-name').required = false;
+            } else if (e.target.value === 'employer') {
+                jobSeekerFields.style.display = 'none';
+                employerFields.style.display = 'block';
+                document.getElementById('name').required = false;
+                document.getElementById('company-name').required = true;
+            } else {
+                jobSeekerFields.style.display = 'none';
+                employerFields.style.display = 'none';
+            }
+        });
+
+        document.getElementById('register-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const userType = document.getElementById('user-type').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const phone = document.getElementById('phone').value;
+            const location = document.getElementById('location').value;
+            const errorDiv = document.getElementById('error-message');
+
+            if (!Utils.validateEmail(email)) {
+                errorDiv.textContent = 'Please enter a valid email address';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            let userData = {
+                type: userType,
+                email: email,
+                password: password,
+                phone: phone || '',
+                location: location || ''
+            };
+
+            if (userType === 'job_seeker') {
+                userData.name = document.getElementById('name').value;
+                userData.skills = [];
+                userData.experience = [];
+                userData.education = [];
+            } else if (userType === 'employer') {
+                userData.companyName = document.getElementById('company-name').value;
+                userData.companyDescription = '';
+                userData.industry = '';
+            }
+
+            const result = Auth.register(userData);
+            
+            if (result.success) {
+                Utils.showToast('Account created successfully!', 'success');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1000);
+            } else {
+                errorDiv.textContent = result.message;
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
+

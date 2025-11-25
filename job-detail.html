@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Details - Job Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="job-listings.html">Browse Jobs</a></li>
+                <li class="nav-auth nav-login">
+                    <a href="login.html" class="btn btn-outline">Login</a>
+                </li>
+                <li class="nav-auth nav-user" style="display: none;">
+                    <a href="#" id="dashboard-link" class="btn btn-primary">Dashboard</a>
+                    <a href="#" id="logout-link" class="btn btn-outline">Logout</a>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div id="job-detail" class="card">
+                <!-- Job details will be loaded here -->
+            </div>
+
+            <div id="application-section" style="display: none;">
+                <div class="card">
+                    <h2 class="card-title">Apply for this Job</h2>
+                    <form id="application-form">
+                        <div class="form-group">
+                            <label class="form-label" for="cover-letter">Cover Letter</label>
+                            <textarea id="cover-letter" class="form-textarea" placeholder="Tell us why you're a good fit for this position..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="resume">Resume (Optional - will use profile resume if not uploaded)</label>
+                            <input type="file" id="resume" class="form-input" accept=".pdf,.doc,.docx">
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">Submit Application</button>
+                            <button type="button" class="btn btn-secondary" onclick="oneClickApply()">One-Click Apply (Use Profile)</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/jobs.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        let currentJob = null;
+
+        function loadJobDetail() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const jobId = urlParams.get('id');
+
+            if (!jobId) {
+                window.location.href = 'job-listings.html';
+                return;
+            }
+
+            currentJob = Jobs.getJobById(jobId);
+            if (!currentJob) {
+                window.location.href = 'job-listings.html';
+                return;
+            }
+
+            const employer = Jobs.getEmployerInfo(currentJob.employerId);
+            const currentUser = Auth.getCurrentUser();
+            const isBookmarked = currentUser ? Bookmarks.isBookmarked(jobId) : false;
+            const hasApplied = currentUser ? Applications.getMyApplications().some(a => a.jobId === jobId) : false;
+
+            const jobDetailDiv = document.getElementById('job-detail');
+            jobDetailDiv.innerHTML = `
+                <div class="card-header">
+                    <div>
+                        <h1 class="card-title">${currentJob.title}</h1>
+                        <p style="color: var(--text-secondary); font-size: 1.125rem;">
+                            ${employer ? employer.companyName || employer.name : 'Company'} • ${currentJob.location}
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        ${currentUser && currentUser.type === 'job_seeker' ? `
+                            <button class="btn ${isBookmarked ? 'btn-primary' : 'btn-outline'}" onclick="toggleBookmark()">
+                                ${isBookmarked ? '★ Bookmarked' : '☆ Bookmark'}
+                            </button>
+                        ` : ''}
+                        ${currentUser && currentUser.type === 'employer' && currentJob.employerId === currentUser.id ? `
+                            <a href="post-job.html?id=${jobId}" class="btn btn-secondary">Edit Job</a>
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="job-meta mb-3">
+                    <span class="badge badge-info">${currentJob.jobType}</span>
+                    <span class="badge badge-info">${currentJob.experienceLevel}</span>
+                    <span class="badge badge-info">${currentJob.industry}</span>
+                    ${currentJob.remote ? '<span class="badge badge-success">Remote</span>' : ''}
+                </div>
+                <div class="mb-3">
+                    <h3>Salary</h3>
+                    <p style="font-size: 1.25rem; color: var(--primary-color); font-weight: 600;">${currentJob.salary}</p>
+                </div>
+                <div class="mb-3">
+                    <h3>Job Description</h3>
+                    <p style="white-space: pre-wrap;">${currentJob.description}</p>
+                </div>
+                <div class="mb-3">
+                    <h3>Required Skills</h3>
+                    <div class="job-skills">
+                        ${currentJob.skills ? currentJob.skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('') : 'No specific skills listed'}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <h3>Job Details</h3>
+                    <div class="grid grid-2">
+                        <div>
+                            <strong>Location:</strong> ${currentJob.location}
+                        </div>
+                        <div>
+                            <strong>Job Type:</strong> ${currentJob.jobType}
+                        </div>
+                        <div>
+                            <strong>Experience:</strong> ${currentJob.experienceLevel}
+                        </div>
+                        <div>
+                            <strong>Industry:</strong> ${currentJob.industry}
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3" style="padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                    <p style="color: var(--text-secondary);">
+                        👁️ ${currentJob.views || 0} views • 📝 ${currentJob.applications || 0} applications
+                    </p>
+                    <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                        Posted ${Utils.formatDate(currentJob.createdAt)}
+                    </p>
+                </div>
+                ${currentUser && currentUser.type === 'job_seeker' && !hasApplied ? `
+                    <div class="text-center mt-3">
+                        <button class="btn btn-primary btn-lg" onclick="showApplicationForm()">Apply Now</button>
+                    </div>
+                ` : hasApplied ? `
+                    <div class="text-center mt-3">
+                        <p class="badge badge-info">You have already applied to this job</p>
+                    </div>
+                ` : ''}
+            `;
+
+            if (currentUser && currentUser.type === 'job_seeker' && hasApplied) {
+                const applicationSection = document.getElementById('application-section');
+                applicationSection.style.display = 'none';
+            }
+        }
+
+        function showApplicationForm() {
+            if (!Auth.isAuthenticated()) {
+                Utils.showToast('Please login to apply', 'error');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            if (!Auth.isJobSeeker()) {
+                Utils.showToast('Only job seekers can apply', 'error');
+                return;
+            }
+
+            document.getElementById('application-section').style.display = 'block';
+            document.getElementById('application-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function toggleBookmark() {
+            if (!Auth.isAuthenticated()) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            if (Bookmarks.isBookmarked(currentJob.id)) {
+                Bookmarks.removeBookmark(currentJob.id);
+                Utils.showToast('Job removed from bookmarks', 'info');
+            } else {
+                Bookmarks.bookmarkJob(currentJob.id);
+                Utils.showToast('Job bookmarked', 'success');
+            }
+            loadJobDetail();
+        }
+
+        function oneClickApply() {
+            const currentUser = Auth.getCurrentUser();
+            if (!currentUser || currentUser.type !== 'job_seeker') {
+                Utils.showToast('Only job seekers can apply', 'error');
+                return;
+            }
+
+            const result = Applications.applyToJob(currentJob.id, 'Applied via one-click apply');
+            if (result.success) {
+                Utils.showToast('Application submitted successfully!', 'success');
+                setTimeout(() => {
+                    window.location.href = 'applications.html';
+                }, 1000);
+            } else {
+                Utils.showToast(result.message, 'error');
+            }
+        }
+
+        document.getElementById('application-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const coverLetter = document.getElementById('cover-letter').value;
+            const resumeFile = document.getElementById('resume').files[0];
+
+            if (!coverLetter.trim()) {
+                Utils.showToast('Please provide a cover letter', 'error');
+                return;
+            }
+
+            const result = Applications.applyToJob(currentJob.id, coverLetter, resumeFile ? resumeFile.name : null);
+            if (result.success) {
+                Utils.showToast('Application submitted successfully!', 'success');
+                setTimeout(() => {
+                    window.location.href = 'applications.html';
+                }, 1000);
+            } else {
+                Utils.showToast(result.message, 'error');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadJobDetail();
+            updateNavigation();
+            
+            const currentUser = Auth.getCurrentUser();
+            if (currentUser) {
+                const dashboardLink = document.getElementById('dashboard-link');
+                if (currentUser.type === 'job_seeker') {
+                    dashboardLink.href = 'job-seeker-dashboard.html';
+                } else if (currentUser.type === 'employer') {
+                    dashboardLink.href = 'employer-dashboard.html';
+                } else if (currentUser.type === 'admin') {
+                    dashboardLink.href = 'admin-dashboard.html';
+                }
+
+                document.getElementById('logout-link').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    Auth.logout();
+                    window.location.href = 'index.html';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

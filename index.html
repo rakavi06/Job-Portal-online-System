@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Portal - Find Your Dream Job</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="job-listings.html">Browse Jobs</a></li>
+                <li class="nav-auth nav-login">
+                    <a href="login.html" class="btn btn-outline">Login</a>
+                    <a href="register.html" class="btn btn-primary">Sign Up</a>
+                </li>
+                <li class="nav-auth nav-user" style="display: none;">
+                    <a href="#" id="dashboard-link" class="btn btn-primary">Dashboard</a>
+                    <a href="#" id="logout-link" class="btn btn-outline">Logout</a>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h1>Find Your Dream Job Today</h1>
+            <p>Connect with top employers and discover opportunities that match your skills</p>
+            <div>
+                <a href="job-listings.html" class="btn btn-primary btn-lg">Browse Jobs</a>
+                <a href="register.html" class="btn btn-outline btn-lg" style="background: rgba(255,255,255,0.2); color: white; border-color: white;">Get Started</a>
+            </div>
+        </section>
+
+        <div class="container">
+            <section class="text-center mb-3">
+                <h2>How It Works</h2>
+                <p class="text-secondary">Simple steps to find your perfect job</p>
+            </section>
+
+            <div class="grid grid-3">
+                <div class="card text-center">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">👤</div>
+                    <h3 class="card-title">Create Profile</h3>
+                    <p>Sign up as a job seeker and build your professional profile with skills, experience, and education.</p>
+                </div>
+                <div class="card text-center">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+                    <h3 class="card-title">Search Jobs</h3>
+                    <p>Use our advanced search and filters to find jobs that match your skills, location, and preferences.</p>
+                </div>
+                <div class="card text-center">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📝</div>
+                    <h3 class="card-title">Apply Easily</h3>
+                    <p>Apply to jobs with one click using your profile, or upload a custom resume and cover letter.</p>
+                </div>
+            </div>
+
+            <section class="text-center mt-3 mb-3">
+                <h2>Featured Jobs</h2>
+                <p class="text-secondary">Latest opportunities from top companies</p>
+            </section>
+
+            <div id="featured-jobs" class="grid grid-2">
+                <!-- Featured jobs will be loaded here -->
+            </div>
+
+            <div class="text-center mt-3">
+                <a href="job-listings.html" class="btn btn-primary btn-lg">View All Jobs</a>
+            </div>
+        </div>
+    </main>
+
+    <footer style="background: var(--bg-primary); padding: 2rem; text-align: center; margin-top: 3rem; border-top: 1px solid var(--border-color);">
+        <p style="color: var(--text-secondary);">&copy; 2024 JobPortal. All rights reserved.</p>
+    </footer>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/jobs.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        // Load featured jobs
+        document.addEventListener('DOMContentLoaded', () => {
+            const jobs = Jobs.getAllJobs().slice(0, 4);
+            const container = document.getElementById('featured-jobs');
+            
+            if (jobs.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No jobs available yet. Check back soon!</p></div>';
+                return;
+            }
+
+            container.innerHTML = jobs.map(job => `
+                <div class="job-card" onclick="window.location.href='job-detail.html?id=${job.id}'">
+                    <div class="job-card-header">
+                        <div>
+                            <h3 class="job-title">${job.title}</h3>
+                            <p class="job-company">${job.location}</p>
+                        </div>
+                    </div>
+                    <div class="job-meta">
+                        <span class="job-meta-item">💰 ${job.salary}</span>
+                        <span class="job-meta-item">📅 ${job.jobType}</span>
+                        <span class="job-meta-item">${job.remote ? '🏠 Remote' : '🏢 On-site'}</span>
+                    </div>
+                    <p class="job-description">${job.description.substring(0, 150)}...</p>
+                    <div class="job-skills">
+                        ${job.skills ? job.skills.slice(0, 3).map(skill => `<span class="skill-tag">${skill}</span>`).join('') : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            // Update navigation
+            updateNavigation();
+            
+            const currentUser = Auth.getCurrentUser();
+            if (currentUser) {
+                const dashboardLink = document.getElementById('dashboard-link');
+                if (currentUser.type === 'job_seeker') {
+                    dashboardLink.href = 'job-seeker-dashboard.html';
+                } else if (currentUser.type === 'employer') {
+                    dashboardLink.href = 'employer-dashboard.html';
+                } else if (currentUser.type === 'admin') {
+                    dashboardLink.href = 'admin-dashboard.html';
+                }
+
+                document.getElementById('logout-link').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    Auth.logout();
+                    window.location.href = 'index.html';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

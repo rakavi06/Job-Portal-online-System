@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Job Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="job-listings.html">Browse Jobs</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container-sm">
+            <div class="card" style="max-width: 500px; margin: 3rem auto;">
+                <div class="card-header">
+                    <h2 class="card-title">Login</h2>
+                </div>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email</label>
+                        <input type="email" id="email" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="password">Password</label>
+                        <input type="password" id="password" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+                    </div>
+                    <div class="text-center">
+                        <p style="color: var(--text-secondary);">
+                            Don't have an account? <a href="register.html" style="color: var(--primary-color);">Sign up</a>
+                        </p>
+                    </div>
+                    <div id="error-message" class="form-error" style="display: none;"></div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error-message');
+
+            const result = Auth.login(email, password);
+            
+            if (result.success) {
+                Utils.showToast('Login successful!', 'success');
+                
+                // Redirect based on user type
+                setTimeout(() => {
+                    if (result.user.type === 'job_seeker') {
+                        window.location.href = 'job-seeker-dashboard.html';
+                    } else if (result.user.type === 'employer') {
+                        window.location.href = 'employer-dashboard.html';
+                    } else if (result.user.type === 'admin') {
+                        window.location.href = 'admin-dashboard.html';
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                }, 500);
+            } else {
+                errorDiv.textContent = result.message;
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
+

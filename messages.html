@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages - Job Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="job-listings.html">Browse Jobs</a></li>
+                <li><a href="#" id="dashboard-link">Dashboard</a></li>
+                <li><a href="messages.html">Messages</a></li>
+                <li><a href="#" id="logout-link" class="btn btn-outline">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="grid grid-2" style="gap: 2rem;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Conversations</h2>
+                    </div>
+                    <div id="conversations-list">
+                        <!-- Conversations will be loaded here -->
+                    </div>
+                </div>
+                <div class="card">
+                    <div id="message-view">
+                        <div class="empty-state">
+                            <p>Select a conversation to view messages</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/jobs.js"></script>
+    <script src="js/messaging.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        let currentConversationUserId = null;
+
+        function loadConversations() {
+            if (!Auth.requireAuth()) return;
+
+            const messages = Messaging.getMessages();
+            const currentUser = Auth.getCurrentUser();
+            
+            // Group messages by other user
+            const conversations = {};
+            messages.forEach(msg => {
+                const otherUserId = msg.fromUserId === currentUser.id ? msg.toUserId : msg.fromUserId;
+                if (!conversations[otherUserId]) {
+                    conversations[otherUserId] = {
+                        userId: otherUserId,
+                        lastMessage: msg,
+                        unread: 0
+                    };
+                }
+                if (msg.toUserId === currentUser.id && !msg.read) {
+                    conversations[otherUserId].unread++;
+                }
+                if (new Date(msg.createdAt) > new Date(conversations[otherUserId].lastMessage.createdAt)) {
+                    conversations[otherUserId].lastMessage = msg;
+                }
+            });
+
+            const conversationsList = document.getElementById('conversations-list');
+            const conversationArray = Object.values(conversations).sort((a, b) => 
+                new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
+            );
+
+            if (conversationArray.length === 0) {
+                conversationsList.innerHTML = '<div class="empty-state"><p>No conversations yet</p></div>';
+                return;
+            }
+
+            conversationsList.innerHTML = conversationArray.map(conv => {
+                const otherUser = Messaging.getUserInfo(conv.userId);
+                const job = conv.lastMessage.jobId ? Jobs.getJobById(conv.lastMessage.jobId) : null;
+                
+                return `
+                    <div class="conversation-item" style="padding: 1rem; border-bottom: 1px solid var(--border-color); cursor: pointer; ${conv.userId === currentConversationUserId ? 'background: var(--bg-tertiary);' : ''}" 
+                         onclick="loadConversation('${conv.userId}')">
+                        <div class="flex-between">
+                            <div>
+                                <h4>${otherUser ? (otherUser.name || otherUser.companyName || 'User') : 'Unknown User'}</h4>
+                                <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                                    ${conv.lastMessage.subject || 'No subject'}
+                                </p>
+                                <p style="color: var(--text-secondary); font-size: 0.75rem;">
+                                    ${Utils.formatDate(conv.lastMessage.createdAt)}
+                                </p>
+                            </div>
+                            ${conv.unread > 0 ? `<span class="badge badge-info">${conv.unread}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadConversation(userId) {
+            currentConversationUserId = userId;
+            const messages = Messaging.getConversation(userId);
+            const otherUser = Messaging.getUserInfo(userId);
+            const currentUser = Auth.getCurrentUser();
+
+            // Mark messages as read
+            messages.forEach(msg => {
+                if (msg.toUserId === currentUser.id && !msg.read) {
+                    Messaging.markAsRead(msg.id);
+                }
+            });
+
+            const messageView = document.getElementById('message-view');
+            messageView.innerHTML = `
+                <div class="card-header">
+                    <h3>${otherUser ? (otherUser.name || otherUser.companyName || 'User') : 'Unknown User'}</h3>
+                </div>
+                <div id="messages-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 1rem;">
+                    ${messages.map(msg => {
+                        const isFromMe = msg.fromUserId === currentUser.id;
+                        return `
+                            <div style="margin-bottom: 1rem; ${isFromMe ? 'text-align: right;' : ''}">
+                                <div style="display: inline-block; max-width: 70%; background: ${isFromMe ? 'var(--primary-color); color: white;' : 'var(--bg-tertiary);'}; padding: 0.75rem; border-radius: var(--radius);">
+                                    <p style="margin: 0;">${msg.message}</p>
+                                    <p style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8;">${Utils.formatDate(msg.createdAt)}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <form id="send-message-form">
+                    <div class="form-group">
+                        <input type="text" id="message-subject" class="form-input" placeholder="Subject (optional)">
+                    </div>
+                    <div class="form-group">
+                        <textarea id="message-text" class="form-textarea" placeholder="Type your message..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">Send Message</button>
+                    </div>
+                </form>
+            `;
+
+            // Scroll to bottom
+            const container = document.getElementById('messages-container');
+            container.scrollTop = container.scrollHeight;
+
+            // Handle send message
+            document.getElementById('send-message-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const subject = document.getElementById('message-subject').value;
+                const message = document.getElementById('message-text').value;
+                const urlParams = new URLSearchParams(window.location.search);
+                const jobId = urlParams.get('jobId');
+
+                const result = Messaging.sendMessage(userId, subject, message, jobId);
+                if (result.success) {
+                    Utils.showToast('Message sent!', 'success');
+                    document.getElementById('message-text').value = '';
+                    document.getElementById('message-subject').value = '';
+                    loadConversation(userId);
+                    loadConversations();
+                } else {
+                    Utils.showToast(result.message, 'error');
+                }
+            });
+
+            loadConversations();
+        }
+
+        // Check URL for userId parameter
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConversations();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('userId');
+            if (userId) {
+                loadConversation(userId);
+            }
+
+            const currentUser = Auth.getCurrentUser();
+            const dashboardLink = document.getElementById('dashboard-link');
+            if (currentUser.type === 'job_seeker') {
+                dashboardLink.href = 'job-seeker-dashboard.html';
+            } else if (currentUser.type === 'employer') {
+                dashboardLink.href = 'employer-dashboard.html';
+            } else if (currentUser.type === 'admin') {
+                dashboardLink.href = 'admin-dashboard.html';
+            }
+
+            document.getElementById('logout-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                Auth.logout();
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html>
+

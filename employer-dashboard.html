@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employer Dashboard - Job Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="job-listings.html">Browse Jobs</a></li>
+                <li><a href="post-job.html">Post Job</a></li>
+                <li><a href="profile.html">Profile</a></li>
+                <li><a href="messages.html">Messages</a></li>
+                <li><a href="#" id="logout-link" class="btn btn-outline">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="dashboard-header">
+                <h1>Welcome, <span id="company-name"></span>!</h1>
+                <p>Manage your job postings and applications</p>
+            </div>
+
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-jobs">0</div>
+                    <div class="stat-label">Active Jobs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-applications">0</div>
+                    <div class="stat-label">Total Applications</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-views">0</div>
+                    <div class="stat-label">Total Views</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="unread-messages">0</div>
+                    <div class="stat-label">Unread Messages</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">My Job Postings</h2>
+                    <a href="post-job.html" class="btn btn-primary">Post New Job</a>
+                </div>
+                <div id="my-jobs">
+                    <!-- Jobs will be loaded here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Recent Applications</h2>
+                </div>
+                <div id="recent-applications">
+                    <!-- Applications will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/jobs.js"></script>
+    <script src="js/messaging.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        function loadDashboard() {
+            if (!Auth.requireUserType('employer')) return;
+
+            const currentUser = Auth.getCurrentUser();
+            document.getElementById('company-name').textContent = currentUser.companyName || 'Employer';
+
+            // Load statistics
+            const myJobs = Jobs.getJobsByEmployer(currentUser.id);
+            let totalApplications = 0;
+            let totalViews = 0;
+
+            myJobs.forEach(job => {
+                const applications = Applications.getJobApplications(job.id);
+                totalApplications += applications.length;
+                totalViews += job.views || 0;
+            });
+
+            const unreadMessages = Messaging.getUnreadCount();
+
+            document.getElementById('total-jobs').textContent = myJobs.length;
+            document.getElementById('total-applications').textContent = totalApplications;
+            document.getElementById('total-views').textContent = totalViews;
+            document.getElementById('unread-messages').textContent = unreadMessages;
+
+            // Load my jobs
+            const jobsContainer = document.getElementById('my-jobs');
+            if (myJobs.length === 0) {
+                jobsContainer.innerHTML = '<div class="empty-state"><p>No jobs posted yet. <a href="post-job.html">Post your first job</a></p></div>';
+            } else {
+                jobsContainer.innerHTML = myJobs.map(job => {
+                    const applications = Applications.getJobApplications(job.id);
+                    return `
+                        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                            <div class="flex-between">
+                                <div style="flex: 1;">
+                                    <h3><a href="job-detail.html?id=${job.id}" style="color: var(--primary-color); text-decoration: none;">${job.title}</a></h3>
+                                    <div class="job-meta" style="margin-top: 0.5rem;">
+                                        <span>📍 ${job.location}</span>
+                                        <span>💰 ${job.salary}</span>
+                                        <span>📅 ${job.jobType}</span>
+                                    </div>
+                                    <div style="margin-top: 1rem;">
+                                        <span style="color: var(--text-secondary);">👁️ ${job.views || 0} views</span>
+                                        <span style="color: var(--text-secondary); margin-left: 1rem;">📝 ${applications.length} applications</span>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <a href="post-job.html?id=${job.id}" class="btn btn-sm btn-secondary">Edit</a>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteJob('${job.id}')">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Load recent applications
+            const allApplications = [];
+            myJobs.forEach(job => {
+                const applications = Applications.getJobApplications(job.id);
+                applications.forEach(app => {
+                    allApplications.push({ ...app, jobTitle: job.title, jobId: job.id });
+                });
+            });
+
+            allApplications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const recentApplications = allApplications.slice(0, 10);
+
+            const applicationsContainer = document.getElementById('recent-applications');
+            if (recentApplications.length === 0) {
+                applicationsContainer.innerHTML = '<div class="empty-state"><p>No applications yet</p></div>';
+            } else {
+                applicationsContainer.innerHTML = recentApplications.map(app => {
+                    const statusBadge = {
+                        'Pending': 'badge-warning',
+                        'Viewed': 'badge-info',
+                        'Interview': 'badge-info',
+                        'Accepted': 'badge-success',
+                        'Rejected': 'badge-danger'
+                    }[app.status] || 'badge-info';
+
+                    return `
+                        <div style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                            <div class="flex-between">
+                                <div>
+                                    <h4>${app.jobSeeker ? app.jobSeeker.name : 'Applicant'}</h4>
+                                    <p style="color: var(--text-secondary); font-size: 0.875rem;">${app.jobTitle} • ${Utils.formatDate(app.createdAt)}</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <select class="form-select" style="width: auto;" onchange="updateApplicationStatus('${app.id}', this.value)">
+                                        <option value="Pending" ${app.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                                        <option value="Viewed" ${app.status === 'Viewed' ? 'selected' : ''}>Viewed</option>
+                                        <option value="Interview" ${app.status === 'Interview' ? 'selected' : ''}>Interview</option>
+                                        <option value="Accepted" ${app.status === 'Accepted' ? 'selected' : ''}>Accepted</option>
+                                        <option value="Rejected" ${app.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
+                                    </select>
+                                    <a href="messages.html?userId=${app.jobSeekerId}" class="btn btn-sm btn-outline">Message</a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function deleteJob(jobId) {
+            if (confirm('Are you sure you want to delete this job posting?')) {
+                const result = Jobs.deleteJob(jobId);
+                if (result.success) {
+                    Utils.showToast('Job deleted successfully', 'success');
+                    loadDashboard();
+                } else {
+                    Utils.showToast(result.message, 'error');
+                }
+            }
+        }
+
+        function updateApplicationStatus(applicationId, status) {
+            const result = Applications.updateStatus(applicationId, status);
+            if (result.success) {
+                Utils.showToast('Application status updated', 'success');
+                loadDashboard();
+            } else {
+                Utils.showToast(result.message, 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboard();
+            
+            document.getElementById('logout-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                Auth.logout();
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html>
+

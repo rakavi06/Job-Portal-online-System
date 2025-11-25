@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Seeker Dashboard - Job Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="job-listings.html">Browse Jobs</a></li>
+                <li><a href="profile.html">Profile</a></li>
+                <li><a href="applications.html">My Applications</a></li>
+                <li><a href="messages.html">Messages</a></li>
+                <li><a href="#" id="logout-link" class="btn btn-outline">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="dashboard-header">
+                <h1>Welcome back, <span id="user-name"></span>!</h1>
+                <p>Manage your job search and track your applications</p>
+            </div>
+
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-applications">0</div>
+                    <div class="stat-label">Total Applications</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="pending-applications">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="bookmarked-jobs">0</div>
+                    <div class="stat-label">Bookmarked Jobs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="unread-messages">0</div>
+                    <div class="stat-label">Unread Messages</div>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Recent Applications</h2>
+                        <a href="applications.html" class="btn btn-sm btn-outline">View All</a>
+                    </div>
+                    <div id="recent-applications">
+                        <!-- Recent applications will be loaded here -->
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Bookmarked Jobs</h2>
+                        <a href="job-listings.html" class="btn btn-sm btn-outline">Browse More</a>
+                    </div>
+                    <div id="bookmarked-jobs-list">
+                        <!-- Bookmarked jobs will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Recommended Jobs</h2>
+                </div>
+                <div id="recommended-jobs" class="grid grid-2">
+                    <!-- Recommended jobs will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/jobs.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/messaging.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        function loadDashboard() {
+            if (!Auth.requireUserType('job_seeker')) return;
+
+            const currentUser = Auth.getCurrentUser();
+            document.getElementById('user-name').textContent = currentUser.name || 'Job Seeker';
+
+            // Load statistics
+            const applications = Applications.getMyApplications();
+            const pending = applications.filter(a => a.status === 'Pending').length;
+            const bookmarks = Bookmarks.getBookmarkedJobs();
+            const unreadMessages = Messaging.getUnreadCount();
+
+            document.getElementById('total-applications').textContent = applications.length;
+            document.getElementById('pending-applications').textContent = pending;
+            document.getElementById('bookmarked-jobs').textContent = bookmarks.length;
+            document.getElementById('unread-messages').textContent = unreadMessages;
+
+            // Load recent applications
+            const recentApplications = applications.slice(0, 5);
+            const applicationsContainer = document.getElementById('recent-applications');
+            if (recentApplications.length === 0) {
+                applicationsContainer.innerHTML = '<div class="empty-state"><p>No applications yet. Start applying to jobs!</p></div>';
+            } else {
+                applicationsContainer.innerHTML = recentApplications.map(app => {
+                    const statusBadge = {
+                        'Pending': 'badge-warning',
+                        'Viewed': 'badge-info',
+                        'Interview': 'badge-info',
+                        'Accepted': 'badge-success',
+                        'Rejected': 'badge-danger'
+                    }[app.status] || 'badge-info';
+
+                    return `
+                        <div style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                            <div class="flex-between">
+                                <div>
+                                    <h4><a href="job-detail.html?id=${app.jobId}" style="color: var(--primary-color); text-decoration: none;">${app.job ? app.job.title : 'Job'}</a></h4>
+                                    <p style="color: var(--text-secondary); font-size: 0.875rem;">${Utils.formatDate(app.createdAt)}</p>
+                                </div>
+                                <span class="badge ${statusBadge}">${app.status}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Load bookmarked jobs
+            const bookmarkedContainer = document.getElementById('bookmarked-jobs-list');
+            if (bookmarks.length === 0) {
+                bookmarkedContainer.innerHTML = '<div class="empty-state"><p>No bookmarked jobs yet</p></div>';
+            } else {
+                bookmarkedContainer.innerHTML = bookmarks.slice(0, 5).map(bookmark => {
+                    if (!bookmark.job) return '';
+                    return `
+                        <div style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                            <h4><a href="job-detail.html?id=${bookmark.job.id}" style="color: var(--primary-color); text-decoration: none;">${bookmark.job.title}</a></h4>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem;">${bookmark.job.location} • ${bookmark.job.jobType}</p>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Load recommended jobs based on skills
+            const userSkills = currentUser.skills || [];
+            const allJobs = Jobs.getAllJobs();
+            const recommended = allJobs
+                .filter(job => {
+                    if (!job.skills) return false;
+                    return job.skills.some(skill => 
+                        userSkills.some(userSkill => 
+                            userSkill.toLowerCase().includes(skill.toLowerCase()) ||
+                            skill.toLowerCase().includes(userSkill.toLowerCase())
+                        )
+                    );
+                })
+                .slice(0, 4);
+
+            const recommendedContainer = document.getElementById('recommended-jobs');
+            if (recommended.length === 0) {
+                recommendedContainer.innerHTML = '<div class="empty-state"><p>No recommended jobs at the moment</p></div>';
+            } else {
+                recommendedContainer.innerHTML = recommended.map(job => `
+                    <div class="job-card" onclick="window.location.href='job-detail.html?id=${job.id}'">
+                        <h3 class="job-title">${job.title}</h3>
+                        <div class="job-meta">
+                            <span>📍 ${job.location}</span>
+                            <span>💰 ${job.salary}</span>
+                        </div>
+                        <p class="job-description">${job.description.substring(0, 100)}...</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboard();
+            
+            document.getElementById('logout-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                Auth.logout();
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html>
+

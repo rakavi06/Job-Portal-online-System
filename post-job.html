@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Job - Job Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html" class="logo">JobPortal</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="employer-dashboard.html">Dashboard</a></li>
+                <li><a href="post-job.html">Post Job</a></li>
+                <li><a href="#" id="logout-link" class="btn btn-outline">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title" id="form-title">Post New Job</h2>
+                </div>
+                <form id="job-form">
+                    <div class="form-group">
+                        <label class="form-label" for="title">Job Title *</label>
+                        <input type="text" id="title" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="description">Job Description *</label>
+                        <textarea id="description" class="form-textarea" required placeholder="Describe the role, responsibilities, and requirements..."></textarea>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label" for="location">Location *</label>
+                            <input type="text" id="location" class="form-input" required placeholder="City, State">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="salary">Salary Range *</label>
+                            <input type="text" id="salary" class="form-input" required placeholder="$50,000 - $70,000">
+                        </div>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label" for="job-type">Job Type *</label>
+                            <select id="job-type" class="form-select" required>
+                                <option value="">Select type</option>
+                                <option value="Full-time">Full-time</option>
+                                <option value="Part-time">Part-time</option>
+                                <option value="Contract">Contract</option>
+                                <option value="Freelance">Freelance</option>
+                                <option value="Internship">Internship</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="experience-level">Experience Level *</label>
+                            <select id="experience-level" class="form-select" required>
+                                <option value="">Select level</option>
+                                <option value="Entry-level">Entry-level</option>
+                                <option value="Mid-level (2-4 years)">Mid-level (2-4 years)</option>
+                                <option value="Mid-level (3-5 years)">Mid-level (3-5 years)</option>
+                                <option value="Senior (5+ years)">Senior (5+ years)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label" for="industry">Industry *</label>
+                            <select id="industry" class="form-select" required>
+                                <option value="">Select industry</option>
+                                <option value="Technology">Technology</option>
+                                <option value="Design">Design</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Finance">Finance</option>
+                                <option value="Healthcare">Healthcare</option>
+                                <option value="Education">Education</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">
+                                <input type="checkbox" id="remote" style="margin-right: 0.5rem;">
+                                Remote Position
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="skills">Required Skills (comma-separated) *</label>
+                        <input type="text" id="skills" class="form-input" required placeholder="JavaScript, React, Node.js, Python">
+                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem;">Separate skills with commas</p>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary" id="submit-btn">Post Job</button>
+                        <a href="employer-dashboard.html" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/jobs.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        let editingJobId = null;
+
+        function loadJobForEdit() {
+            const urlParams = new URLSearchParams(window.location.search);
+            editingJobId = urlParams.get('id');
+
+            if (editingJobId) {
+                document.getElementById('form-title').textContent = 'Edit Job';
+                document.getElementById('submit-btn').textContent = 'Update Job';
+
+                const job = Jobs.getJobById(editingJobId);
+                if (!job) {
+                    window.location.href = 'post-job.html';
+                    return;
+                }
+
+                // Check if user owns this job
+                const currentUser = Auth.getCurrentUser();
+                if (job.employerId !== currentUser.id && !Auth.isAdmin()) {
+                    window.location.href = 'employer-dashboard.html';
+                    return;
+                }
+
+                // Populate form
+                document.getElementById('title').value = job.title;
+                document.getElementById('description').value = job.description;
+                document.getElementById('location').value = job.location;
+                document.getElementById('salary').value = job.salary;
+                document.getElementById('job-type').value = job.jobType;
+                document.getElementById('experience-level').value = job.experienceLevel;
+                document.getElementById('industry').value = job.industry;
+                document.getElementById('remote').checked = job.remote || false;
+                document.getElementById('skills').value = job.skills ? job.skills.join(', ') : '';
+            }
+        }
+
+        document.getElementById('job-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            if (!Auth.requireUserType('employer')) return;
+
+            const jobData = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                location: document.getElementById('location').value,
+                salary: document.getElementById('salary').value,
+                jobType: document.getElementById('job-type').value,
+                experienceLevel: document.getElementById('experience-level').value,
+                industry: document.getElementById('industry').value,
+                remote: document.getElementById('remote').checked,
+                skills: document.getElementById('skills').value.split(',').map(s => s.trim()).filter(s => s)
+            };
+
+            let result;
+            if (editingJobId) {
+                result = Jobs.updateJob(editingJobId, jobData);
+            } else {
+                result = Jobs.createJob(jobData);
+            }
+
+            if (result.success) {
+                Utils.showToast(editingJobId ? 'Job updated successfully!' : 'Job posted successfully!', 'success');
+                setTimeout(() => {
+                    window.location.href = 'employer-dashboard.html';
+                }, 1000);
+            } else {
+                Utils.showToast(result.message, 'error');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!Auth.requireUserType('employer')) return;
+            loadJobForEdit();
+            
+            document.getElementById('logout-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                Auth.logout();
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html>
+
